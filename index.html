@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXTSCALE — Plataforma de Conteúdo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07101F;--surf:#0D1B35;--surf2:#111F3A;--surf3:#162340;
+  --gold:#C9922A;--gold2:#E8B84B;--white:#fff;--gray:#7A8BA0;--lgray:#B0BFCF;
+  --border:rgba(201,146,42,.2);--border2:rgba(255,255,255,.07);
+  --green:#22C55E;--red:#EF4444;--yellow:#F59E0B;--blue:#60A5FA;
+  --r:12px;--r2:8px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--white);min-height:100vh}
+/* ── AUTH ─────────────────────────────────────── */
+#auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.auth-box{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:2.5rem 2rem;width:100%;max-width:400px}
+.auth-brand{text-align:center;margin-bottom:1.5rem}
+.auth-brand .name{font-size:1.4rem;font-weight:800;letter-spacing:4px}
+.auth-brand .sub{font-size:.65rem;color:var(--gold);letter-spacing:3px;margin-top:3px}
+.gold-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:1.2rem 0}
+.tabs{display:flex;gap:6px;margin-bottom:1.2rem}
+.tab{flex:1;padding:.5rem;border:1px solid var(--border2);border-radius:var(--r2);background:transparent;color:var(--gray);font-size:.8rem;cursor:pointer;transition:all .2s;text-align:center}
+.tab.on{border-color:var(--gold);color:var(--gold);background:rgba(201,146,42,.1)}
+.fg{margin-bottom:1rem}
+.fg label{display:block;font-size:.72rem;color:var(--lgray);margin-bottom:5px;letter-spacing:.5px}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--surf2);border:1px solid var(--border2);border-radius:var(--r2);padding:.7rem .9rem;color:var(--white);font-size:.9rem;outline:none;transition:border-color .2s;font-family:inherit}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold)}
+.fg textarea{resize:vertical}
+.btn{border:none;border-radius:var(--r2);padding:.75rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-gold{background:var(--gold);color:#000;width:100%;justify-content:center}
+.btn-gold:hover{background:var(--gold2)}
+.btn-sm{padding:.4rem .8rem;font-size:.75rem}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--lgray)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-green{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green)}
+.btn-green:hover{background:rgba(34,197,94,.25)}
+.btn-red{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+.btn-red:hover{background:rgba(239,68,68,.25)}
+.btn-blue{background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3);color:var(--blue)}
+.btn-blue:hover{background:rgba(96,165,250,.25)}
+.auth-err{color:var(--red);font-size:.78rem;text-align:center;margin-top:.6rem;display:none}
+.auth-hint{font-size:.68rem;color:var(--gray);text-align:center;margin-top:1rem;line-height:1.6}
+/* ── LAYOUT ───────────────────────────────────── */
+#app{display:none;min-height:100vh;flex-direction:column}
+.topnav{background:var(--surf);border-bottom:1px solid var(--border2);padding:.8rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.nav-brand .name{font-size:.95rem;font-weight:800;letter-spacing:3px}
+.nav-brand .sub{font-size:.6rem;color:var(--gold);letter-spacing:2px}
+.nav-links{display:flex;gap:4px}
+.nav-link{padding:.45rem .9rem;border-radius:var(--r2);font-size:.8rem;color:var(--gray);cursor:pointer;transition:all .2s;border:none;background:transparent}
+.nav-link:hover{color:var(--white);background:rgba(255,255,255,.05)}
+.nav-link.on{color:var(--gold);background:rgba(201,146,42,.1)}
+.nav-right{display:flex;align-items:center;gap:.75rem}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#000;flex-shrink:0}
+.nav-user{font-size:.8rem;font-weight:600}
+.nav-role{font-size:.65rem;color:var(--gray)}
+.btn-exit{background:transparent;border:1px solid var(--border2);border-radius:var(--r2);padding:.35rem .75rem;font-size:.72rem;color:var(--gray);cursor:pointer}
+.btn-exit:hover{border-color:var(--red);color:var(--red)}
+/* NOTIF BADGE */
+.notif-badge{background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:4px}
+/* ── CONTENT ──────────────────────────────────── */
+.wrap{padding:1.5rem;max-width:1300px;margin:0 auto;width:100%}
+.page{display:none}.page.on{display:block}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.stat{background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);padding:1.2rem}
+.stat-label{font-size:.72rem;color:var(--gray);letter-spacing:.5px;margin-bottom:.4rem}
+.stat-val{font-size:1.8rem;font-weight:800}
+/* SECTION */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.sec-title{font-size:1rem;font-weight:700}
+.sec-sub{font-size:.75rem;color:var(--gray);margin-top:2px}
+/* CLIENT CARDS */
+.grid-3{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.client-card{background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);padding:1.25rem;cursor:pointer;transition:all .2s}
+.client-card:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.cc-head{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.cc-avatar{width:42px;height:42px;border-radius:var(--r2);background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;color:#000;flex-shrink:0}
+.cc-name{font-size:.9rem;font-weight:700}
+.cc-niche{font-size:.72rem;color:var(--gray);margin-top:2px}
+.cc-stats{display:flex;gap:.75rem;margin-bottom:.75rem}
+.cs{text-align:center}
+.cs-val{font-size:1.1rem;font-weight:700}
+.cs-lab{font-size:.62rem;color:var(--gray)}
+.cc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border2)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:600}
+.badge-g{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-y{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge-r{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-b{background:rgba(96,165,250,.15);color:var(--blue)}
+/* DETAIL */
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--gray);margin-bottom:1.25rem;cursor:pointer}
+.breadcrumb:hover{color:var(--gold)}
+/* MONTH TABS */
+.month-tabs{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap}
+.mtab{padding:.35rem .9rem;border:1px solid var(--border2);border-radius:20px;font-size:.78rem;color:var(--gray);cursor:pointer;background:transparent;transition:all .2s}
+.mtab.on{border-color:var(--gold);color:var(--gold);background:rgba(201,146,42,.1)}
+/* CONTENT CARDS */
+.grid-c{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1.1rem}
+.cc2{background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;transition:border-color .2s}
+.cc2:hover{border-color:rgba(201,146,42,.35)}
+.cc2-thumb{height:150px;background:var(--surf2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.cc2-thumb img{width:100%;height:100%;object-fit:cover}
+.cc2-type-ico{font-size:2.2rem;opacity:.5}
+.cc2-date{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.75);border-radius:6px;padding:2px 7px;font-size:.68rem;color:var(--lgray)}
+.cc2-status-bar{position:absolute;bottom:0;left:0;right:0;height:3px}
+.cc2-body{padding:.9rem}
+.cc2-tipo{font-size:.62rem;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.cc2-title{font-size:.88rem;font-weight:700;margin-bottom:.35rem}
+.cc2-desc{font-size:.75rem;color:var(--gray);line-height:1.5;margin-bottom:.75rem}
+.cc2-actions{display:flex;gap:6px;flex-wrap:wrap}
+.cc2-status{display:flex;align-items:center;gap:5px;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border2);font-size:.72rem;color:var(--gray)}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sdot-g{background:var(--green)}
+.sdot-y{background:var(--yellow)}
+.sdot-r{background:var(--red)}
+/* REVISION BOX */
+.rev-box{margin-top:.6rem;display:none}
+.rev-box textarea{width:100%;background:var(--surf2);border:1px solid rgba(239,68,68,.3);border-radius:var(--r2);padding:.6rem;color:var(--white);font-size:.78rem;resize:none;outline:none;font-family:inherit}
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:.5rem}
+.cal-day-name{text-align:center;font-size:.68rem;color:var(--gray);padding:.4rem 0;font-weight:600}
+.cal-day{background:var(--surf2);border:1px solid var(--border2);border-radius:6px;min-height:80px;padding:.4rem;position:relative;transition:all .2s}
+.cal-day.today{border-color:var(--gold)}
+.cal-day.other-month{opacity:.35}
+.cal-num{font-size:.72rem;color:var(--lgray);margin-bottom:.3rem}
+.cal-event{border-radius:4px;padding:2px 5px;font-size:.62rem;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.cal-event.pending{background:rgba(245,158,11,.2);color:var(--yellow)}
+.cal-event.approved{background:rgba(34,197,94,.2);color:var(--green)}
+.cal-event.revision{background:rgba(239,68,68,.2);color:var(--red)}
+/* PLANNING TABLE */
+.plan-table{width:100%;border-collapse:collapse}
+.plan-table th{text-align:left;padding:.6rem .9rem;font-size:.72rem;color:var(--gray);border-bottom:1px solid var(--border2);letter-spacing:.5px}
+.plan-table td{padding:.65rem .9rem;font-size:.8rem;border-bottom:1px solid var(--border2)}
+.plan-table tr:last-child td{border-bottom:none}
+.plan-table tr:hover td{background:rgba(255,255,255,.02)}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem}
+.modal{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:1.75rem;width:100%;max-width:540px;max-height:90vh;overflow-y:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.modal-title{font-size:1rem;font-weight:700}
+.btn-x{background:transparent;border:none;color:var(--gray);cursor:pointer;font-size:1.1rem;line-height:1}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.modal-foot{display:flex;gap:.6rem;margin-top:1.25rem}
+/* NOTIF PANEL */
+.notif-list{display:flex;flex-direction:column;gap:.75rem}
+.notif-item{background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);padding:1rem;display:flex;align-items:flex-start;gap:.75rem}
+.notif-ico{font-size:1.3rem;flex-shrink:0}
+.notif-body .ntitle{font-size:.85rem;font-weight:600;margin-bottom:3px}
+.notif-body .nsub{font-size:.75rem;color:var(--gray)}
+.notif-item.unread{border-left:3px solid var(--gold)}
+/* UPLOAD AREA */
+.upload-area{border:2px dashed var(--border);border-radius:var(--r2);padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:.8rem}
+.upload-area:hover{border-color:var(--gold);background:rgba(201,146,42,.04)}
+.upload-ico{font-size:1.8rem;margin-bottom:.4rem}
+.upload-txt{font-size:.8rem;color:var(--gray)}
+/* EMPTY */
+.empty{text-align:center;padding:2.5rem;color:var(--gray)}
+.empty-ico{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="auth-box">
+    <div class="auth-brand">
+      <div class="name">NEXTSCALE</div>
+      <div class="sub">PLATAFORMA DE CONTEÚDO</div>
+    </div>
+    <div class="gold-line"></div>
+    <div class="tabs">
+      <div class="tab on" onclick="setRole('admin')" id="t1">Equipe</div>
+      <div class="tab" onclick="setRole('client')" id="t2">Cliente</div>
+    </div>
+    <div class="fg"><label>EMAIL</label><input id="lemail" type="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')login()"></div>
+    <div class="fg"><label>SENHA</label><input id="lpass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+    <button class="btn btn-gold" onclick="login()">ENTRAR</button>
+    <div class="auth-err" id="aerr">Email ou senha incorretos.</div>
+    <div class="auth-hint">
+      Equipe: admin@nextscale.com / admin123<br>
+      Cliente: cliente@plane.com / plane123
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- TOP NAV -->
+  <div class="topnav">
+    <div class="nav-brand"><div class="name">NEXTSCALE</div><div class="sub">PLATAFORMA DE CONTEÚDO</div></div>
+    <div class="nav-links" id="navLinks"></div>
+    <div class="nav-right">
+      <div class="nav-avatar" id="navAv">W</div>
+      <div><div class="nav-user" id="navName">—</div><div class="nav-role" id="navRole">—</div></div>
+      <button class="btn-exit" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <!-- PAGES -->
+  <div class="wrap">
+
+    <!-- DASHBOARD (admin) -->
+    <div class="page" id="pDash">
+      <div class="sec-hdr" style="margin-bottom:1.5rem">
+        <div><div class="sec-title" style="font-size:1.2rem">Dashboard</div><div class="sec-sub">Visão geral da plataforma NEXTSCALE</div></div>
+      </div>
+      <div class="stats" id="statsRow"></div>
+      <div class="sec-hdr"><div class="sec-title">Clientes ativos</div><button class="btn btn-sm btn-outline" onclick="showP('pClientes')">Ver todos →</button></div>
+      <div class="grid-3" id="dashGrid"></div>
+      <div style="margin-top:1.5rem">
+        <div class="sec-hdr"><div class="sec-title">Notificações recentes</div></div>
+        <div class="notif-list" id="dashNotifs"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTES (admin) -->
+    <div class="page" id="pClientes">
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem">Clientes</div><div class="sec-sub">Gerencie os clientes da NEXTSCALE</div></div>
+        <button class="btn btn-gold btn-sm" onclick="openClientModal()">+ Novo Cliente</button>
+      </div>
+      <div class="grid-3" id="clientGrid"></div>
+    </div>
+
+    <!-- CALENDÁRIO (admin) -->
+    <div class="page" id="pCal">
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem">Calendário Editorial</div><div class="sec-sub">Visualize todos os conteúdos por data</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn btn-sm btn-outline" onclick="changeMonth(-1)">‹</button>
+          <span id="calMonthLabel" style="font-size:.9rem;font-weight:700;min-width:140px;text-align:center"></span>
+          <button class="btn btn-sm btn-outline" onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- PLANEJAMENTO (admin) -->
+    <div class="page" id="pPlan">
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem">Planejamento de Conteúdo</div><div class="sec-sub">Todos os conteúdos organizados por cliente e data</div></div>
+        <button class="btn btn-gold btn-sm" onclick="openContentModal()">+ Novo Conteúdo</button>
+      </div>
+      <div class="month-tabs" id="planMonthTabs"></div>
+      <div style="background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden">
+        <table class="plan-table"><thead><tr>
+          <th>CLIENTE</th><th>TÍTULO</th><th>TIPO</th><th>DATA</th><th>MÊS</th><th>STATUS</th><th>AÇÕES</th>
+        </tr></thead><tbody id="planBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- NOTIFICAÇÕES (admin) -->
+    <div class="page" id="pNotif">
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem">Notificações</div><div class="sec-sub">Aprovações e solicitações de revisão</div></div>
+        <button class="btn btn-sm btn-outline" onclick="markAllRead()">Marcar todas como lidas</button>
+      </div>
+      <div class="notif-list" id="notifList"></div>
+    </div>
+
+    <!-- DETALHE CLIENTE -->
+    <div class="page" id="pDetalhe">
+      <div class="breadcrumb" onclick="showP('pClientes')">← Voltar para Clientes</div>
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem" id="detTitle">—</div><div class="sec-sub" id="detSub">—</div></div>
+        <button class="btn btn-gold btn-sm" onclick="openContentModal(currentCid)">+ Novo Conteúdo</button>
+      </div>
+      <div class="month-tabs" id="detMonthTabs"></div>
+      <div class="grid-c" id="detGrid"></div>
+    </div>
+
+    <!-- VISÃO CLIENTE (client login) -->
+    <div class="page" id="pClient">
+      <div class="sec-hdr" style="margin-bottom:1.5rem">
+        <div><div class="sec-title" style="font-size:1.1rem" id="clientTitle">Meus Conteúdos</div><div class="sec-sub">Aprove ou solicite revisão dos seus conteúdos</div></div>
+      </div>
+      <div class="stats" id="clientStats"></div>
+      <div class="month-tabs" id="clientMonthTabs"></div>
+      <div class="grid-c" id="clientGrid2"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL CONTEÚDO -->
+<div class="overlay" id="mContent">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title" id="mContentTitle">Novo Conteúdo</div><button class="btn-x" onclick="closeModal('mContent')">✕</button></div>
+    <input type="hidden" id="editId">
+    <div class="form-row">
+      <div class="fg"><label>CLIENTE</label><select id="cCliente"></select></div>
+      <div class="fg"><label>MÊS</label><select id="cMes">
+        <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
+      </select></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>TIPO</label><select id="cTipo">
+        <option>📚 Carrossel</option><option>🖼️ Estático</option><option>🎬 Vídeo</option><option>🎥 Reels</option><option>📱 Stories</option>
+      </select></div>
+      <div class="fg"><label>DATA DE PUBLICAÇÃO</label><input type="date" id="cData" style="color-scheme:dark"></div>
+    </div>
+    <div class="fg"><label>TÍTULO</label><input id="cTitulo" placeholder="Ex: Mercado Naval em Foco #01"></div>
+    <div class="fg"><label>DESCRIÇÃO / ROTEIRO / SLIDES</label><textarea id="cDesc" rows="5" placeholder="Descreva o conteúdo com detalhes..."></textarea></div>
+    <div class="upload-area" onclick="document.getElementById('cFile').click()">
+      <input type="file" id="cFile" style="display:none" accept="image/*,video/*" onchange="handleFile(this)">
+      <div class="upload-ico">📎</div>
+      <div class="upload-txt">Clique para anexar imagem ou vídeo (opcional)</div>
+      <div id="filePrev" style="margin-top:6px;font-size:.78rem;color:var(--gold)"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('mContent')">Cancelar</button>
+      <button class="btn btn-gold" style="flex:2" onclick="saveContent()">Salvar Conteúdo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="overlay" id="mClient">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">Novo Cliente</div><button class="btn-x" onclick="closeModal('mClient')">✕</button></div>
+    <div class="fg"><label>NOME DA EMPRESA</label><input id="ncName" placeholder="Ex: Plane Engenharia"></div>
+    <div class="form-row">
+      <div class="fg"><label>NICHO</label><input id="ncNiche" placeholder="Ex: Engenharia Civil"></div>
+      <div class="fg"><label>PLANO</label><select id="ncPlan">
+        <option>NS Start — 3 meses</option><option>NS Growth — 6 meses</option><option>NS Domínio — 12 meses</option>
+      </select></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>EMAIL DE ACESSO</label><input type="email" id="ncEmail" placeholder="cliente@empresa.com"></div>
+      <div class="fg"><label>SENHA DE ACESSO</label><input type="password" id="ncPass" placeholder="Senha do cliente"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('mClient')">Cancelar</button>
+      <button class="btn btn-gold" style="flex:2" onclick="saveClient()">Criar Cliente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────
+let role='admin',currentUser=null,currentCid=null,calYear=2026,calMonth=6;
+let notifications=[];
+let clients=[
+  {id:'plane',name:'Plane Engenharia',niche:'Engenharia Civil',plan:'NS Growth — 6 meses',email:'cliente@plane.com',pass:'plane123'},
+  {id:'rsa',name:'RSA Naval',niche:'Engenharia Naval',plan:'NS Start — 3 meses',email:'cliente@rsa.com',pass:'rsa123'},
+  {id:'origem56',name:'Origem 56',niche:'Engenharia Ambiental',plan:'NS Start — 3 meses',email:'cliente@origem56.com',pass:'origem123'},
+  {id:'mult',name:'Multespaço',niche:'Soluções para Ambientes',plan:'NS Start — 3 meses',email:'cliente@mult.com',pass:'mult123'},
+];
+let contents=[];
+const USERS={
+  'admin@nextscale.com':{pass:'admin123',role:'admin',name:'Werley Moraes',initials:'W',roleLabel:'CEO · NEXTSCALE'},
+  'cliente@plane.com':{pass:'plane123',role:'client',name:'Plane Engenharia',initials:'P',roleLabel:'Cliente · NEXTSCALE',cid:'plane'},
+  'cliente@rsa.com':{pass:'rsa123',role:'client',name:'RSA Naval',initials:'R',roleLabel:'Cliente · NEXTSCALE',cid:'rsa'},
+  'cliente@origem56.com':{pass:'origem123',role:'client',name:'Origem 56',initials:'O',roleLabel:'Cliente · NEXTSCALE',cid:'origem56'},
+  'cliente@mult.com':{pass:'mult123',role:'client',name:'Multespaço',initials:'M',roleLabel:'Cliente · NEXTSCALE',cid:'mult'},
+};
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const TIPO_ICO={'📚 Carrossel':'📚','🖼️ Estático':'🖼️','🎬 Vídeo':'🎬','🎥 Reels':'🎥','📱 Stories':'📱'};
+const STATUS_COLORS={pending:'#F59E0B',approved:'#22C55E',revision:'#EF4444'};
+
+// ── AUTH ─────────────────────────────────────
+function setRole(r){
+  role=r;
+  document.getElementById('t1').classList.toggle('on',r==='admin');
+  document.getElementById('t2').classList.toggle('on',r==='client');
+}
+function login(){
+  const e=document.getElementById('lemail').value.trim();
+  const p=document.getElementById('lpass').value;
+  const u=USERS[e];
+  if(!u||u.pass!==p){document.getElementById('aerr').style.display='block';return;}
+  document.getElementById('aerr').style.display='none';
+  currentUser={...u,email:e};
+  document.getElementById('auth').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('app').style.flexDirection='column';
+  document.getElementById('navAv').textContent=u.initials;
+  document.getElementById('navName').textContent=u.name;
+  document.getElementById('navRole').textContent=u.roleLabel;
+  if(u.role==='admin'){setupAdminNav();showP('pDash');}
+  else{setupClientNav();showClientView(u.cid);}
+}
+function logout(){
+  currentUser=null;
+  document.getElementById('auth').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('lemail').value='';
+  document.getElementById('lpass').value='';
+}
+
+// ── NAV ──────────────────────────────────────
+function setupAdminNav(){
+  document.getElementById('navLinks').innerHTML=`
+    <button class="nav-link on" onclick="nav(this,'pDash')">Dashboard</button>
+    <button class="nav-link" onclick="nav(this,'pClientes')">Clientes</button>
+    <button class="nav-link" onclick="nav(this,'pPlan')">Planejamento</button>
+    <button class="nav-link" onclick="nav(this,'pCal')">Calendário</button>
+    <button class="nav-link" onclick="nav(this,'pNotif')">Notificações <span class="notif-badge" id="notifCount">0</span></button>`;
+}
+function setupClientNav(){
+  document.getElementById('navLinks').innerHTML=`
+    <button class="nav-link on" onclick="nav(this,'pClient')">Meus Conteúdos</button>`;
+}
+function nav(btn,pid){
+  document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  showP(pid);
+}
+function showP(pid){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById(pid).classList.add('on');
+  if(pid==='pDash')renderDash();
+  if(pid==='pClientes')renderClients();
+  if(pid==='pCal')renderCal();
+  if(pid==='pPlan')renderPlan();
+  if(pid==='pNotif')renderNotifs();
+}
+
+// ── HELPERS ──────────────────────────────────
+const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const getClient=id=>clients.find(c=>c.id===id);
+const getCContents=id=>contents.filter(c=>c.cid===id);
+const statusLabel={pending:'Aguardando aprovação',approved:'Aprovado',revision:'Revisão solicitada'};
+const statusDot={pending:'sdot-y',approved:'sdot-g',revision:'sdot-r'};
+const statusBadge={pending:'badge-y',approved:'badge-g',revision:'badge-r'};
+
+function updateNotifBadge(){
+  const unread=notifications.filter(n=>!n.read).length;
+  const el=document.getElementById('notifCount');
+  if(el){el.textContent=unread;el.style.display=unread>0?'inline-flex':'none';}
+}
+
+// ── DASHBOARD ────────────────────────────────
+function renderDash(){
+  const pend=contents.filter(c=>c.status==='pending').length;
+  const appr=contents.filter(c=>c.status==='approved').length;
+  const rev=contents.filter(c=>c.status==='revision').length;
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat"><div class="stat-label">CLIENTES</div><div class="stat-val" style="color:var(--gold2)">${clients.length}</div></div>
+    <div class="stat"><div class="stat-label">PENDENTES</div><div class="stat-val" style="color:var(--yellow)">${pend}</div></div>
+    <div class="stat"><div class="stat-label">APROVADOS</div><div class="stat-val" style="color:var(--green)">${appr}</div></div>
+    <div class="stat"><div class="stat-label">EM REVISÃO</div><div class="stat-val" style="color:var(--red)">${rev}</div></div>`;
+  const g=document.getElementById('dashGrid');g.innerHTML='';
+  clients.slice(0,4).forEach(c=>g.appendChild(makeClientCard(c)));
+  const nd=document.getElementById('dashNotifs');nd.innerHTML='';
+  const recent=notifications.slice(0,3);
+  if(recent.length===0)nd.innerHTML='<div class="empty"><div class="empty-ico">🔔</div><p>Sem notificações ainda</p></div>';
+  else recent.forEach(n=>nd.appendChild(makeNotifItem(n)));
+}
+
+// ── CLIENTS ──────────────────────────────────
+function renderClients(){
+  const g=document.getElementById('clientGrid');g.innerHTML='';
+  clients.forEach(c=>g.appendChild(makeClientCard(c)));
+}
+function makeClientCard(c){
+  const cc=getCContents(c.id);
+  const pend=cc.filter(x=>x.status==='pending').length;
+  const appr=cc.filter(x=>x.status==='approved').length;
+  const rev=cc.filter(x=>x.status==='revision').length;
+  const div=document.createElement('div');div.className='client-card';
+  div.onclick=()=>showDetail(c.id);
+  div.innerHTML=`
+    <div class="cc-head">
+      <div class="cc-avatar">${ini(c.name)}</div>
+      <div><div class="cc-name">${c.name}</div><div class="cc-niche">${c.niche} · ${c.plan}</div></div>
+    </div>
+    <div class="cc-stats">
+      <div class="cs"><div class="cs-val" style="color:var(--yellow)">${pend}</div><div class="cs-lab">Pendentes</div></div>
+      <div class="cs"><div class="cs-val" style="color:var(--green)">${appr}</div><div class="cs-lab">Aprovados</div></div>
+      <div class="cs"><div class="cs-val" style="color:var(--red)">${rev}</div><div class="cs-lab">Revisão</div></div>
+      <div class="cs"><div class="cs-val" style="color:var(--gold2)">${cc.length}</div><div class="cs-lab">Total</div></div>
+    </div>
+    <div class="cc-foot">
+      <span class="badge ${pend>0?'badge-y':appr>0?'badge-g':'badge-b'}">${pend>0?'● Pendente':appr>0?'● Em dia':'● Sem conteúdo'}</span>
+      <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();showDetail('${c.id}')">Ver →</button>
+    </div>`;
+  return div;
+}
+
+// ── DETAIL ───────────────────────────────────
+function showDetail(cid){
+  currentCid=cid;
+  const c=getClient(cid);
+  document.getElementById('detTitle').textContent=c.name;
+  document.getElementById('detSub').textContent=c.niche+' · '+c.plan;
+  showP('pDetalhe');
+  renderDetMonths();
+}
+function renderDetMonths(filter){
+  const cc=getCContents(currentCid);
+  const months=[...new Set(cc.map(c=>c.mes))];
+  const tabs=document.getElementById('detMonthTabs');
+  tabs.innerHTML='<button class="mtab on" onclick="filterDet(null,this)">Todos</button>';
+  months.forEach(m=>{
+    const b=document.createElement('button');b.className='mtab';b.textContent=m;
+    b.onclick=function(){filterDet(m,this);};tabs.appendChild(b);
+  });
+  const filtered=filter?cc.filter(c=>c.mes===filter):cc;
+  const g=document.getElementById('detGrid');g.innerHTML='';
+  if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo ainda.<br>Adicione o primeiro conteúdo.</p></div>';return;}
+  filtered.forEach(c=>g.appendChild(makeContentCard(c,true)));
+}
+function filterDet(m,btn){
+  document.querySelectorAll('#detMonthTabs .mtab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderDetMonths(m);
+}
+
+// ── CONTENT CARD ─────────────────────────────
+function makeContentCard(c,isAdmin){
+  const div=document.createElement('div');div.className='cc2';div.id='cc-'+c.id;
+  const sl=statusLabel[c.status]||'Pendente';
+  const sd=statusDot[c.status]||'sdot-y';
+  const ico=Object.values(TIPO_ICO).find((_,i)=>Object.keys(TIPO_ICO)[i]===c.tipo)||'📄';
+  div.innerHTML=`
+    <div class="cc2-thumb">
+      ${c.img?`<img src="${c.img}">`:`<div class="cc2-type-ico">${ico}</div>`}
+      ${c.data?`<div class="cc2-date">${formatDate(c.data)}</div>`:''}
+      <div class="cc2-status-bar" style="background:${STATUS_COLORS[c.status]||STATUS_COLORS.pending}"></div>
+    </div>
+    <div class="cc2-body">
+      <div class="cc2-tipo">${c.tipo} · ${c.mes}</div>
+      <div class="cc2-title">${c.titulo}</div>
+      <div class="cc2-desc">${c.desc.length>120?c.desc.slice(0,120)+'...':c.desc}</div>
+      <div class="cc2-actions" id="act-${c.id}">
+        ${isAdmin?`
+          <button class="btn btn-sm btn-blue" onclick="openEditModal('${c.id}')">✏️ Editar</button>
+          <button class="btn btn-sm btn-red" onclick="deleteContent('${c.id}')">🗑 Remover</button>
+          ${c.status!=='approved'?`<button class="btn btn-sm btn-green" onclick="approveContent('${c.id}')">✓ Aprovar</button>`:''}
+        `:`
+          ${c.status==='approved'?`<button class="btn btn-sm btn-green" disabled style="cursor:default;opacity:.7">✓ Aprovado</button>`:`
+          <button class="btn btn-sm btn-green" onclick="approveContent('${c.id}')">✓ Aprovar</button>
+          <button class="btn btn-sm btn-red" onclick="toggleRev('${c.id}')">✕ Revisar</button>`}
+        `}
+      </div>
+      <div class="rev-box" id="rev-${c.id}">
+        <textarea id="revtxt-${c.id}" rows="3" placeholder="Descreva o que precisa ser ajustado..."></textarea>
+        <button class="btn btn-red btn-sm" style="width:100%;margin-top:5px;justify-content:center" onclick="sendRev('${c.id}')">Enviar revisão</button>
+      </div>
+      <div class="cc2-status">
+        <div class="sdot ${sd}"></div>
+        <span>${sl}</span>
+        ${c.comment?`<span style="margin-left:auto;cursor:pointer;color:var(--gold2);font-size:.68rem" onclick="showComment('${c.id}')">Ver comentário</span>`:''}
+      </div>
+    </div>`;
+  return div;
+}
+
+function showComment(id){
+  const c=contents.find(x=>x.id===id);
+  if(c&&c.comment)alert('Comentário do cliente:\n\n'+c.comment);
+}
+
+function approveContent(id){
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  c.status='approved';c.comment='';
+  if(currentUser.role==='client'){
+    addNotif('✅','Conteúdo aprovado',`"${c.titulo}" foi aprovado por ${getClient(c.cid)?.name}`);
+  }
+  refreshCard(id);
+  updateNotifBadge();
+}
+function toggleRev(id){
+  const b=document.getElementById('rev-'+id);
+  b.style.display=b.style.display==='block'?'none':'block';
+}
+function sendRev(id){
+  const txt=document.getElementById('revtxt-'+id).value.trim();
+  if(!txt){alert('Descreva o que precisa ser ajustado.');return;}
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  c.status='revision';c.comment=txt;
+  document.getElementById('rev-'+id).style.display='none';
+  addNotif('🔄','Revisão solicitada',`"${c.titulo}" precisa de ajustes: ${txt.slice(0,60)}...`);
+  refreshCard(id);
+  updateNotifBadge();
+  alert('Revisão enviada! A equipe NEXTSCALE será notificada.');
+}
+function deleteContent(id){
+  if(!confirm('Remover este conteúdo permanentemente?'))return;
+  contents=contents.filter(c=>c.id!==id);
+  const el=document.getElementById('cc-'+id);if(el)el.remove();
+}
+function refreshCard(id){
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  const old=document.getElementById('cc-'+id);if(!old)return;
+  const isAdmin=currentUser.role==='admin';
+  const newCard=makeContentCard(c,isAdmin);
+  old.replaceWith(newCard);
+}
+
+// ── EDIT CONTENT ─────────────────────────────
+function openEditModal(id){
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  document.getElementById('mContentTitle').textContent='Editar Conteúdo';
+  document.getElementById('editId').value=id;
+  populateClientSelect(c.cid);
+  document.getElementById('cMes').value=c.mes;
+  document.getElementById('cTipo').value=c.tipo;
+  document.getElementById('cData').value=c.data||'';
+  document.getElementById('cTitulo').value=c.titulo;
+  document.getElementById('cDesc').value=c.desc;
+  document.getElementById('filePrev').textContent=c.img?'✓ Imagem atual mantida':'';
+  document.getElementById('mContent').style.display='flex';
+}
+function openContentModal(cid){
+  document.getElementById('mContentTitle').textContent='Novo Conteúdo';
+  document.getElementById('editId').value='';
+  populateClientSelect(cid||currentCid);
+  document.getElementById('cTitulo').value='';
+  document.getElementById('cDesc').value='';
+  document.getElementById('cData').value='';
+  document.getElementById('filePrev').textContent='';
+  document.getElementById('mContent').style.display='flex';
+}
+function populateClientSelect(selectedCid){
+  const sel=document.getElementById('cCliente');sel.innerHTML='';
+  clients.forEach(c=>{
+    const o=document.createElement('option');o.value=c.id;o.textContent=c.name;
+    if(c.id===selectedCid)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function handleFile(input){
+  if(input.files[0])document.getElementById('filePrev').textContent='✓ '+input.files[0].name;
+}
+function saveContent(){
+  const titulo=document.getElementById('cTitulo').value.trim();
+  const desc=document.getElementById('cDesc').value.trim();
+  if(!titulo){alert('Adicione um título.');return;}
+  const eid=document.getElementById('editId').value;
+  const fileInput=document.getElementById('cFile');
+
+  const doSave=(imgData)=>{
+    if(eid){
+      const c=contents.find(x=>x.id===eid);if(!c)return;
+      c.cid=document.getElementById('cCliente').value;
+      c.mes=document.getElementById('cMes').value;
+      c.tipo=document.getElementById('cTipo').value;
+      c.data=document.getElementById('cData').value;
+      c.titulo=titulo;c.desc=desc;
+      if(imgData)c.img=imgData;
+      closeModal('mContent');
+      refreshCard(eid);
+    } else {
+      const nc={id:'c'+Date.now(),cid:document.getElementById('cCliente').value,
+        mes:document.getElementById('cMes').value,tipo:document.getElementById('cTipo').value,
+        data:document.getElementById('cData').value,titulo,desc,status:'pending',comment:'',img:imgData||null};
+      contents.push(nc);
+      closeModal('mContent');
+      if(document.getElementById('pDetalhe').classList.contains('on'))renderDetMonths();
+      if(document.getElementById('pPlan').classList.contains('on'))renderPlan();
+      if(document.getElementById('pClient').classList.contains('on'))renderClientView(currentUser.cid);
+    }
+    alert(eid?'Conteúdo atualizado!':'Conteúdo adicionado!');
+  };
+
+  if(fileInput.files[0]){
+    const r=new FileReader();r.onload=e=>doSave(e.target.result);r.readAsDataURL(fileInput.files[0]);
+  } else doSave(null);
+}
+
+// ── PLANNING TABLE ────────────────────────────
+function renderPlan(filter){
+  const months=[...new Set(contents.map(c=>c.mes))];
+  const tabs=document.getElementById('planMonthTabs');
+  tabs.innerHTML='<button class="mtab on" onclick="filterPlan(null,this)">Todos</button>';
+  months.forEach(m=>{
+    const b=document.createElement('button');b.className='mtab';b.textContent=m;
+    b.onclick=function(){filterPlan(m,this);};tabs.appendChild(b);
+  });
+  const filtered=filter?contents.filter(c=>c.mes===filter):contents;
+  const tbody=document.getElementById('planBody');tbody.innerHTML='';
+  if(filtered.length===0){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">Nenhum conteúdo cadastrado ainda.</td></tr>';return;
+  }
+  filtered.sort((a,b)=>(a.data||'').localeCompare(b.data||'')).forEach(c=>{
+    const cl=getClient(c.cid);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span style="font-weight:600">${cl?.name||'—'}</span></td>
+      <td>${c.titulo}</td>
+      <td>${c.tipo}</td>
+      <td>${c.data?formatDate(c.data):'—'}</td>
+      <td>${c.mes}</td>
+      <td><span class="badge ${statusBadge[c.status]}">${statusLabel[c.status]}</span></td>
+      <td style="display:flex;gap:5px">
+        <button class="btn btn-sm btn-blue" onclick="openEditModal('${c.id}')">✏️</button>
+        <button class="btn btn-sm btn-red" onclick="deleteContent('${c.id}');renderPlan()">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+function filterPlan(m,btn){
+  document.querySelectorAll('#planMonthTabs .mtab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderPlan(m);
+}
+
+// ── CALENDAR ─────────────────────────────────
+function changeMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCal();}
+function formatDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}`;}
+function renderCal(){
+  document.getElementById('calMonthLabel').textContent=MONTHS[calMonth]+' '+calYear;
+  const grid=document.getElementById('calGrid');grid.innerHTML='';
+  const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  days.forEach(d=>{const el=document.createElement('div');el.className='cal-day-name';el.textContent=d;grid.appendChild(el);});
+  const first=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();
+  for(let i=0;i<first;i++){const el=document.createElement('div');el.className='cal-day other-month';grid.appendChild(el);}
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement('div');el.className='cal-day';
+    if(d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear())el.classList.add('today');
+    const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    el.innerHTML=`<div class="cal-num">${d}</div>`;
+    const dayContents=contents.filter(c=>c.data===dateStr);
+    dayContents.forEach(c=>{
+      const ev=document.createElement('div');
+      ev.className=`cal-event ${c.status}`;
+      ev.textContent=c.titulo.slice(0,18);
+      ev.title=c.titulo;
+      ev.onclick=()=>{showDetail(c.cid);};
+      el.appendChild(ev);
+    });
+    grid.appendChild(el);
+  }
+}
+
+// ── NOTIFICATIONS ─────────────────────────────
+function addNotif(ico,title,sub){
+  notifications.unshift({id:'n'+Date.now(),ico,title,sub,read:false,time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
+  updateNotifBadge();
+}
+function markAllRead(){notifications.forEach(n=>n.read=true);updateNotifBadge();renderNotifs();}
+function makeNotifItem(n){
+  const div=document.createElement('div');div.className='notif-item'+(n.read?'':' unread');
+  div.innerHTML=`<div class="notif-ico">${n.ico}</div><div class="notif-body"><div class="ntitle">${n.title}</div><div class="nsub">${n.sub}</div><div class="nsub" style="margin-top:4px;color:var(--gold);font-size:.68rem">${n.time}</div></div>`;
+  div.onclick=()=>{n.read=true;div.classList.remove('unread');updateNotifBadge();};
+  return div;
+}
+function renderNotifs(){
+  const l=document.getElementById('notifList');l.innerHTML='';
+  if(notifications.length===0){l.innerHTML='<div class="empty"><div class="empty-ico">🔔</div><p>Sem notificações ainda</p></div>';return;}
+  notifications.forEach(n=>l.appendChild(makeNotifItem(n)));
+}
+
+// ── CLIENT VIEW ───────────────────────────────
+function showClientView(cid){
+  currentCid=cid;
+  showP('pClient');
+  renderClientView(cid);
+}
+function renderClientView(cid,filter){
+  const cc=getCContents(cid);
+  const pend=cc.filter(x=>x.status==='pending').length;
+  const appr=cc.filter(x=>x.status==='approved').length;
+  const rev=cc.filter(x=>x.status==='revision').length;
+  const c=getClient(cid);
+  document.getElementById('clientTitle').textContent=c?c.name+' — Meus Conteúdos':'Meus Conteúdos';
+  document.getElementById('clientStats').innerHTML=`
+    <div class="stat"><div class="stat-label">TOTAL</div><div class="stat-val" style="color:var(--gold2)">${cc.length}</div></div>
+    <div class="stat"><div class="stat-label">PENDENTES</div><div class="stat-val" style="color:var(--yellow)">${pend}</div></div>
+    <div class="stat"><div class="stat-label">APROVADOS</div><div class="stat-val" style="color:var(--green)">${appr}</div></div>
+    <div class="stat"><div class="stat-label">EM REVISÃO</div><div class="stat-val" style="color:var(--red)">${rev}</div></div>`;
+  const months=[...new Set(cc.map(c=>c.mes))];
+  const tabs=document.getElementById('clientMonthTabs');
+  tabs.innerHTML='<button class="mtab on" onclick="filterClient(null,this)">Todos</button>';
+  months.forEach(m=>{
+    const b=document.createElement('button');b.className='mtab';b.textContent=m;
+    b.onclick=function(){filterClient(m,this);};tabs.appendChild(b);
+  });
+  const filtered=filter?cc.filter(c=>c.mes===filter):cc;
+  const g=document.getElementById('clientGrid2');g.innerHTML='';
+  if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo disponível ainda.<br>Aguarde a equipe NEXTSCALE adicionar.</p></div>';return;}
+  filtered.forEach(c=>g.appendChild(makeContentCard(c,false)));
+}
+function filterClient(m,btn){
+  document.querySelectorAll('#clientMonthTabs .mtab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderClientView(currentCid,m);
+}
+
+// ── CLIENT MODAL ─────────────────────────────
+function openClientModal(){document.getElementById('mClient').style.display='flex';}
+function saveClient(){
+  const name=document.getElementById('ncName').value.trim();
+  const niche=document.getElementById('ncNiche').value.trim();
+  const email=document.getElementById('ncEmail').value.trim();
+  const pass=document.getElementById('ncPass').value.trim();
+  const plan=document.getElementById('ncPlan').value;
+  if(!name||!email||!pass){alert('Preencha nome, email e senha.');return;}
+  const id=name.toLowerCase().replace(/\s+/g,'_')+Date.now();
+  clients.push({id,name,niche:niche||'Não informado',plan,email,pass});
+  USERS[email]={pass,role:'client',name,initials:ini(name),roleLabel:'Cliente · NEXTSCALE',cid:id};
+  closeModal('mClient');
+  renderClients();
+  alert(`Cliente criado!\nEmail: ${email}\nSenha: ${pass}`);
+}
+
+// ── MODAL ─────────────────────────────────────
+function closeModal(id){document.getElementById(id).style.display='none';}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.style.display='none';}));
+updateNotifBadge();
+</script>
+</body>
+</html>
