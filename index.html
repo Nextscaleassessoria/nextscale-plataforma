@@ -23,8 +23,6 @@
 
   // Expose to global scope so the rest of the app (non-module script) can use it
   window.FB = { db, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs };
-  window.FB_READY = new Promise(resolve => { window._fbResolve = resolve; });
-  window._fbResolve();
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -380,7 +378,7 @@ const DEFAULT_CLIENTS=[
 ];
 
 async function initFirestore(){
-  await window.FB_READY;
+  while(!window.FB){ await new Promise(r=>setTimeout(r,30)); }
   const { db, collection, doc, setDoc, onSnapshot, getDocs } = window.FB;
 
   // Seed default clients only if the collection is empty (first run ever)
