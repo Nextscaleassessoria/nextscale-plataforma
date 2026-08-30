@@ -266,7 +266,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="breadcrumb" onclick="showP('pClientes')">← Voltar para Clientes</div>
       <div class="sec-hdr">
         <div><div class="sec-title" style="font-size:1.1rem" id="detTitle">—</div><div class="sec-sub" id="detSub">—</div></div>
-        <button class="btn btn-gold btn-sm" onclick="openContentModal(currentCid)">+ Novo Conteúdo</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-red btn-sm" onclick="deleteClient(currentCid);showP('pClientes')">🗑 Remover Cliente</button>
+          <button class="btn btn-gold btn-sm" onclick="openContentModal(currentCid)">+ Novo Conteúdo</button>
+        </div>
       </div>
       <div class="month-tabs" id="detMonthTabs"></div>
       <div class="grid-c" id="detGrid"></div>
@@ -476,9 +479,28 @@ function makeClientCard(c){
     </div>
     <div class="cc-foot">
       <span class="badge ${pend>0?'badge-y':appr>0?'badge-g':'badge-b'}">${pend>0?'● Pendente':appr>0?'● Em dia':'● Sem conteúdo'}</span>
-      <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();showDetail('${c.id}')">Ver →</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-red" onclick="event.stopPropagation();deleteClient('${c.id}')">🗑</button>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();showDetail('${c.id}')">Ver →</button>
+      </div>
     </div>`;
   return div;
+}
+
+function deleteClient(cid){
+  const c=getClient(cid);
+  if(!c)return;
+  const cc=getCContents(cid);
+  const msg=cc.length>0
+    ? `Remover "${c.name}"?\n\nIsso vai apagar também os ${cc.length} conteúdo(s) cadastrados para este cliente.\n\nEssa ação não pode ser desfeita.`
+    : `Remover "${c.name}"?\n\nEssa ação não pode ser desfeita.`;
+  if(!confirm(msg))return;
+  clients=clients.filter(x=>x.id!==cid);
+  contents=contents.filter(x=>x.cid!==cid);
+  delete USERS[c.email];
+  if(document.getElementById('pClientes').classList.contains('on'))renderClients();
+  if(document.getElementById('pDash').classList.contains('on'))renderDash();
+  alert(`Cliente "${c.name}" removido com sucesso.`);
 }
 
 // ── DETAIL ───────────────────────────────────
