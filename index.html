@@ -4,6 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXTSCALE — Plataforma de Conteúdo</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDIiqoWHuNWinorRpiGxkvKQU0L4DDgF-M",
+    authDomain: "nextscale-plataforma.firebaseapp.com",
+    projectId: "nextscale-plataforma",
+    storageBucket: "nextscale-plataforma.firebasestorage.app",
+    messagingSenderId: "260446709258",
+    appId: "1:260446709258:web:b763284f9e8b3b1fcda1f3"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+
+  // Expose to global scope so the rest of the app (non-module script) can use it
+  window.FB = { db, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs };
+  window.FB_READY = new Promise(resolve => { window._fbResolve = resolve; });
+  window._fbResolve();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -342,20 +364,102 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ── STATE ─────────────────────────────────────
 let role='admin',currentUser=null,currentCid=null,calYear=2026,calMonth=6;
 let notifications=[];
-let clients=[
+let clients=[];
+let contents=[];
+const USERS={
+  'admin@nextscale.com':{pass:'admin123',role:'admin',name:'Werley Moraes',initials:'W',roleLabel:'CEO · NEXTSCALE'},
+};
+let dbReady=false;
+
+// ── FIRESTORE SYNC ────────────────────────────
+const DEFAULT_CLIENTS=[
   {id:'plane',name:'Plane Engenharia',niche:'Engenharia Civil',plan:'NS Growth — 6 meses',email:'cliente@plane.com',pass:'plane123'},
   {id:'rsa',name:'RSA Naval',niche:'Engenharia Naval',plan:'NS Start — 3 meses',email:'cliente@rsa.com',pass:'rsa123'},
   {id:'origem56',name:'Origem 56',niche:'Engenharia Ambiental',plan:'NS Start — 3 meses',email:'cliente@origem56.com',pass:'origem123'},
   {id:'mult',name:'Multespaço',niche:'Soluções para Ambientes',plan:'NS Start — 3 meses',email:'cliente@mult.com',pass:'mult123'},
 ];
-let contents=[];
-const USERS={
-  'admin@nextscale.com':{pass:'admin123',role:'admin',name:'Werley Moraes',initials:'W',roleLabel:'CEO · NEXTSCALE'},
-  'cliente@plane.com':{pass:'plane123',role:'client',name:'Plane Engenharia',initials:'P',roleLabel:'Cliente · NEXTSCALE',cid:'plane'},
-  'cliente@rsa.com':{pass:'rsa123',role:'client',name:'RSA Naval',initials:'R',roleLabel:'Cliente · NEXTSCALE',cid:'rsa'},
-  'cliente@origem56.com':{pass:'origem123',role:'client',name:'Origem 56',initials:'O',roleLabel:'Cliente · NEXTSCALE',cid:'origem56'},
-  'cliente@mult.com':{pass:'mult123',role:'client',name:'Multespaço',initials:'M',roleLabel:'Cliente · NEXTSCALE',cid:'mult'},
-};
+
+async function initFirestore(){
+  await window.FB_READY;
+  const { db, collection, doc, setDoc, onSnapshot, getDocs } = window.FB;
+
+  // Seed default clients only if the collection is empty (first run ever)
+  const snap = await getDocs(collection(db,'clients'));
+  if(snap.empty){
+    for(const c of DEFAULT_CLIENTS){
+      await setDoc(doc(db,'clients',c.id), c);
+    }
+  }
+
+  // Live sync clients
+  onSnapshot(collection(db,'clients'), snapshot => {
+    clients = snapshot.docs.map(d => d.data());
+    clients.forEach(c => {
+      USERS[c.email] = {pass:c.pass, role:'client', name:c.name, initials:ini(c.name), roleLabel:'Cliente · NEXTSCALE', cid:c.id};
+    });
+    dbReady = true;
+    rerenderCurrentPage();
+  });
+
+  // Live sync contents
+  onSnapshot(collection(db,'contents'), snapshot => {
+    contents = snapshot.docs.map(d => d.data());
+    rerenderCurrentPage();
+  });
+
+  // Live sync notifications
+  onSnapshot(collection(db,'notifications'), snapshot => {
+    notifications = snapshot.docs.map(d => d.data()).sort((a,b)=> (b.ts||0)-(a.ts||0));
+    updateNotifBadge();
+    if(document.getElementById('pNotif')?.classList.contains('on')) renderNotifs();
+    if(document.getElementById('pDash')?.classList.contains('on')) renderDash();
+  });
+}
+
+function rerenderCurrentPage(){
+  if(!currentUser) return;
+  const active = document.querySelector('.page.on');
+  if(!active) return;
+  const id = active.id;
+  if(id==='pDash') renderDash();
+  if(id==='pClientes') renderClients();
+  if(id==='pDetalhe' && currentCid) renderDetMonths();
+  if(id==='pPlan') renderPlan();
+  if(id==='pClient' && currentCid) renderClientView(currentCid);
+}
+
+async function fbSaveClient(c){
+  const { db, doc, setDoc } = window.FB;
+  await setDoc(doc(db,'clients',c.id), c);
+}
+async function fbDeleteClient(cid){
+  const { db, doc, deleteDoc, collection, getDocs } = window.FB;
+  await deleteDoc(doc(db,'clients',cid));
+  // delete related contents
+  const snap = await getDocs(collection(db,'contents'));
+  for(const d of snap.docs){
+    if(d.data().cid===cid) await deleteDoc(doc(db,'contents',d.id));
+  }
+}
+async function fbSaveContent(c){
+  const { db, doc, setDoc } = window.FB;
+  await setDoc(doc(db,'contents',c.id), c);
+}
+async function fbDeleteContent(id){
+  const { db, doc, deleteDoc } = window.FB;
+  await deleteDoc(doc(db,'contents',id));
+}
+async function fbSaveNotif(n){
+  const { db, doc, setDoc } = window.FB;
+  await setDoc(doc(db,'notifications',n.id), n);
+}
+async function fbUpdateNotifRead(id, read){
+  const { db, doc, setDoc } = window.FB;
+  const n = notifications.find(x=>x.id===id);
+  if(n){ n.read=read; await setDoc(doc(db,'notifications',id), n); }
+}
+
+initFirestore();
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const TIPO_ICO={'📚 Carrossel':'📚','🖼️ Estático':'🖼️','🎬 Vídeo':'🎬','🎥 Reels':'🎥','📱 Stories':'📱'};
 const STATUS_COLORS={pending:'#F59E0B',approved:'#22C55E',revision:'#EF4444'};
@@ -483,7 +587,7 @@ function makeClientCard(c){
   return div;
 }
 
-function deleteClient(cid){
+async function deleteClient(cid){
   const c=getClient(cid);
   if(!c)return;
   const cc=getCContents(cid);
@@ -491,11 +595,8 @@ function deleteClient(cid){
     ? `Remover "${c.name}"?\n\nIsso vai apagar também os ${cc.length} conteúdo(s) cadastrados para este cliente.\n\nEssa ação não pode ser desfeita.`
     : `Remover "${c.name}"?\n\nEssa ação não pode ser desfeita.`;
   if(!confirm(msg))return;
-  clients=clients.filter(x=>x.id!==cid);
-  contents=contents.filter(x=>x.cid!==cid);
   delete USERS[c.email];
-  if(document.getElementById('pClientes').classList.contains('on'))renderClients();
-  if(document.getElementById('pDash').classList.contains('on'))renderDash();
+  await fbDeleteClient(cid);
   alert(`Cliente "${c.name}" removido com sucesso.`);
 }
 
@@ -572,43 +673,32 @@ function showComment(id){
   if(c&&c.comment)alert('Comentário do cliente:\n\n'+c.comment);
 }
 
-function approveContent(id){
+async function approveContent(id){
   const c=contents.find(x=>x.id===id);if(!c)return;
   c.status='approved';c.comment='';
+  await fbSaveContent(c);
   if(currentUser.role==='client'){
     addNotif('✅','Conteúdo aprovado',`"${c.titulo}" foi aprovado por ${getClient(c.cid)?.name}`);
   }
-  refreshCard(id);
-  updateNotifBadge();
 }
 function toggleRev(id){
   const b=document.getElementById('rev-'+id);
   b.style.display=b.style.display==='block'?'none':'block';
 }
-function sendRev(id){
+async function sendRev(id){
   const txt=document.getElementById('revtxt-'+id).value.trim();
   if(!txt){alert('Descreva o que precisa ser ajustado.');return;}
   const c=contents.find(x=>x.id===id);if(!c)return;
   c.status='revision';c.comment=txt;
+  await fbSaveContent(c);
   document.getElementById('rev-'+id).style.display='none';
   addNotif('🔄','Revisão solicitada',`"${c.titulo}" precisa de ajustes: ${txt.slice(0,60)}...`);
-  refreshCard(id);
-  updateNotifBadge();
   alert('Revisão enviada! A equipe NEXTSCALE será notificada.');
 }
-function deleteContent(id){
+async function deleteContent(id){
   if(!confirm('Remover este conteúdo permanentemente?'))return;
-  contents=contents.filter(c=>c.id!==id);
-  const el=document.getElementById('cc-'+id);if(el)el.remove();
+  await fbDeleteContent(id);
 }
-function refreshCard(id){
-  const c=contents.find(x=>x.id===id);if(!c)return;
-  const old=document.getElementById('cc-'+id);if(!old)return;
-  const isAdmin=currentUser.role==='admin';
-  const newCard=makeContentCard(c,isAdmin);
-  old.replaceWith(newCard);
-}
-
 // ── EDIT CONTENT ─────────────────────────────
 function openEditModal(id){
   const c=contents.find(x=>x.id===id);if(!c)return;
@@ -651,7 +741,7 @@ function saveContent(){
   const eid=document.getElementById('editId').value;
   const fileInput=document.getElementById('cFile');
 
-  const doSave=(imgData)=>{
+  const doSave=async(imgData)=>{
     if(eid){
       const c=contents.find(x=>x.id===eid);if(!c)return;
       c.cid=document.getElementById('cCliente').value;
@@ -660,17 +750,14 @@ function saveContent(){
       c.data=document.getElementById('cData').value;
       c.titulo=titulo;c.desc=desc;
       if(imgData)c.img=imgData;
+      await fbSaveContent(c);
       closeModal('mContent');
-      refreshCard(eid);
     } else {
       const nc={id:'c'+Date.now(),cid:document.getElementById('cCliente').value,
         mes:document.getElementById('cMes').value,tipo:document.getElementById('cTipo').value,
         data:document.getElementById('cData').value,titulo,desc,status:'pending',comment:'',img:imgData||null};
-      contents.push(nc);
+      await fbSaveContent(nc);
       closeModal('mContent');
-      if(document.getElementById('pDetalhe').classList.contains('on'))renderDetMonths();
-      if(document.getElementById('pPlan').classList.contains('on'))renderPlan();
-      if(document.getElementById('pClient').classList.contains('on'))renderClientView(currentUser.cid);
     }
     alert(eid?'Conteúdo atualizado!':'Conteúdo adicionado!');
   };
@@ -747,15 +834,17 @@ function renderCal(){
 }
 
 // ── NOTIFICATIONS ─────────────────────────────
-function addNotif(ico,title,sub){
-  notifications.unshift({id:'n'+Date.now(),ico,title,sub,read:false,time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
-  updateNotifBadge();
+async function addNotif(ico,title,sub){
+  const n={id:'n'+Date.now(),ico,title,sub,read:false,ts:Date.now(),time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+  await fbSaveNotif(n);
 }
-function markAllRead(){notifications.forEach(n=>n.read=true);updateNotifBadge();renderNotifs();}
+async function markAllRead(){
+  for(const n of notifications){ if(!n.read) await fbUpdateNotifRead(n.id,true); }
+}
 function makeNotifItem(n){
   const div=document.createElement('div');div.className='notif-item'+(n.read?'':' unread');
   div.innerHTML=`<div class="notif-ico">${n.ico}</div><div class="notif-body"><div class="ntitle">${n.title}</div><div class="nsub">${n.sub}</div><div class="nsub" style="margin-top:4px;color:var(--gold);font-size:.68rem">${n.time}</div></div>`;
-  div.onclick=()=>{n.read=true;div.classList.remove('unread');updateNotifBadge();};
+  div.onclick=()=>{fbUpdateNotifRead(n.id,true);};
   return div;
 }
 function renderNotifs(){
@@ -801,7 +890,7 @@ function filterClient(m,btn){
 
 // ── CLIENT MODAL ─────────────────────────────
 function openClientModal(){document.getElementById('mClient').style.display='flex';}
-function saveClient(){
+async function saveClient(){
   const name=document.getElementById('ncName').value.trim();
   const niche=document.getElementById('ncNiche').value.trim();
   const email=document.getElementById('ncEmail').value.trim();
@@ -809,10 +898,10 @@ function saveClient(){
   const plan=document.getElementById('ncPlan').value;
   if(!name||!email||!pass){alert('Preencha nome, email e senha.');return;}
   const id=name.toLowerCase().replace(/\s+/g,'_')+Date.now();
-  clients.push({id,name,niche:niche||'Não informado',plan,email,pass});
+  const newClient={id,name,niche:niche||'Não informado',plan,email,pass};
+  await fbSaveClient(newClient);
   USERS[email]={pass,role:'client',name,initials:ini(name),roleLabel:'Cliente · NEXTSCALE',cid:id};
   closeModal('mClient');
-  renderClients();
   alert(`Cliente criado!\nEmail: ${email}\nSenha: ${pass}`);
 }
 
