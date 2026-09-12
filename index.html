@@ -294,7 +294,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- VISÃO CLIENTE (client login) -->
     <div class="page" id="pClient">
       <div class="sec-hdr" style="margin-bottom:1.5rem">
-        <div><div class="sec-title" style="font-size:1.1rem" id="clientTitle">Meus Conteúdos</div><div class="sec-sub">Aprove ou solicite revisão dos seus conteúdos</div></div>
+        <div><div class="sec-title" style="font-size:1.1rem" id="clientTitle">Meus Conteúdos</div><div class="sec-sub">Aprove, edite ou envie novos conteúdos</div></div>
+        <button class="btn btn-gold btn-sm" onclick="openClientUploadModal()">+ Novo Conteúdo</button>
       </div>
       <div class="stats" id="clientStats"></div>
       <div class="month-tabs" id="clientMonthTabs"></div>
@@ -332,6 +333,55 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="modal-foot">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('mContent')">Cancelar</button>
       <button class="btn btn-gold" style="flex:2" onclick="saveContent()">Salvar Conteúdo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO CLIENTE (edição simples de texto) -->
+<div class="overlay" id="mClientEdit">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">Editar Conteúdo</div><button class="btn-x" onclick="closeModal('mClientEdit')">✕</button></div>
+    <input type="hidden" id="clientEditId">
+    <div class="fg"><label>TÍTULO</label><input id="clientEditTitulo" placeholder="Título do conteúdo"></div>
+    <div class="fg"><label>DESCRIÇÃO / ROTEIRO / SLIDES</label><textarea id="clientEditDesc" rows="8" placeholder="Edite o texto do conteúdo..."></textarea></div>
+    <div class="upload-area" onclick="document.getElementById('clientEditFile').click()">
+      <input type="file" id="clientEditFile" style="display:none" accept="image/*,video/*" onchange="handleClientFile(this)">
+      <div class="upload-ico">📎</div>
+      <div class="upload-txt">Clique para trocar a imagem ou vídeo (opcional)</div>
+      <div id="clientEditFilePrev" style="margin-top:6px;font-size:.78rem;color:var(--gold)"></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--gray);margin-top:.5rem">Ao salvar, o conteúdo volta para "Aguardando aprovação" para a equipe conferir a edição.</div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('mClientEdit')">Cancelar</button>
+      <button class="btn btn-gold" style="flex:2" onclick="saveClientEdit()">Salvar Edição</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO CONTEÚDO DO CLIENTE (upload próprio) -->
+<div class="overlay" id="mClientUpload">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">Enviar Novo Conteúdo</div><button class="btn-x" onclick="closeModal('mClientUpload')">✕</button></div>
+    <div class="form-row">
+      <div class="fg"><label>MÊS</label><select id="cuMes">
+        <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
+      </select></div>
+      <div class="fg"><label>TIPO</label><select id="cuTipo">
+        <option>📚 Carrossel</option><option>🖼️ Estático</option><option>🎬 Vídeo</option><option>🎥 Reels</option><option>📱 Stories</option>
+      </select></div>
+    </div>
+    <div class="fg"><label>DATA SUGERIDA DE PUBLICAÇÃO</label><input type="date" id="cuData" style="color-scheme:dark"></div>
+    <div class="fg"><label>TÍTULO</label><input id="cuTitulo" placeholder="Título do seu conteúdo"></div>
+    <div class="fg"><label>DESCRIÇÃO / ROTEIRO</label><textarea id="cuDesc" rows="5" placeholder="Descreva o conteúdo..."></textarea></div>
+    <div class="upload-area" onclick="document.getElementById('cuFile').click()">
+      <input type="file" id="cuFile" style="display:none" accept="image/*,video/*" onchange="handleClientUploadFile(this)">
+      <div class="upload-ico">📎</div>
+      <div class="upload-txt">Clique para anexar imagem ou vídeo (opcional)</div>
+      <div id="cuFilePrev" style="margin-top:6px;font-size:.78rem;color:var(--gold)"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('mClientUpload')">Cancelar</button>
+      <button class="btn btn-gold" style="flex:2" onclick="saveClientUpload()">Enviar Conteúdo</button>
     </div>
   </div>
 </div>
@@ -639,7 +689,7 @@ function makeContentCard(c,isAdmin){
       <div class="cc2-status-bar" style="background:${STATUS_COLORS[c.status]||STATUS_COLORS.pending}"></div>
     </div>
     <div class="cc2-body">
-      <div class="cc2-tipo">${c.tipo} · ${c.mes}</div>
+      <div class="cc2-tipo">${c.tipo} · ${c.mes} ${c.fromClient?'· <span style="color:var(--blue)">Enviado pelo cliente</span>':''}</div>
       <div class="cc2-title">${c.titulo}</div>
       <div class="cc2-desc">${c.desc.length>120?c.desc.slice(0,120)+'...':c.desc}</div>
       <div class="cc2-actions" id="act-${c.id}">
@@ -648,6 +698,7 @@ function makeContentCard(c,isAdmin){
           <button class="btn btn-sm btn-red" onclick="deleteContent('${c.id}')">🗑 Remover</button>
           ${c.status!=='approved'?`<button class="btn btn-sm btn-green" onclick="approveContent('${c.id}')">✓ Aprovar</button>`:''}
         `:`
+          <button class="btn btn-sm btn-blue" onclick="openClientEditModal('${c.id}')">✏️ Editar</button>
           ${c.status==='approved'?`<button class="btn btn-sm btn-green" disabled style="cursor:default;opacity:.7">✓ Aprovado</button>`:`
           <button class="btn btn-sm btn-green" onclick="approveContent('${c.id}')">✓ Aprovar</button>
           <button class="btn btn-sm btn-red" onclick="toggleRev('${c.id}')">✕ Revisar</button>`}
@@ -696,6 +747,81 @@ async function sendRev(id){
 async function deleteContent(id){
   if(!confirm('Remover este conteúdo permanentemente?'))return;
   await fbDeleteContent(id);
+}
+
+// ── CLIENT EDIT (client can edit title/desc/image) ────
+let clientEditImgData=null;
+function openClientEditModal(id){
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  document.getElementById('clientEditId').value=id;
+  document.getElementById('clientEditTitulo').value=c.titulo;
+  document.getElementById('clientEditDesc').value=c.desc;
+  document.getElementById('clientEditFilePrev').textContent=c.img?'✓ Imagem atual mantida':'';
+  clientEditImgData=null;
+  document.getElementById('mClientEdit').style.display='flex';
+}
+function handleClientFile(input){
+  if(input.files[0]){
+    document.getElementById('clientEditFilePrev').textContent='✓ '+input.files[0].name;
+    const r=new FileReader();
+    r.onload=e=>{clientEditImgData=e.target.result;};
+    r.readAsDataURL(input.files[0]);
+  }
+}
+async function saveClientEdit(){
+  const id=document.getElementById('clientEditId').value;
+  const titulo=document.getElementById('clientEditTitulo').value.trim();
+  const desc=document.getElementById('clientEditDesc').value.trim();
+  if(!titulo){alert('O título não pode ficar vazio.');return;}
+  const c=contents.find(x=>x.id===id);if(!c)return;
+  c.titulo=titulo;c.desc=desc;
+  if(clientEditImgData)c.img=clientEditImgData;
+  c.status='pending';
+  c.comment='';
+  await fbSaveContent(c);
+  closeModal('mClientEdit');
+  addNotif('✏️','Conteúdo editado pelo cliente',`"${titulo}" foi editado por ${getClient(c.cid)?.name} e aguarda revisão`);
+  alert('Edição salva! O conteúdo voltou para revisão da equipe NEXTSCALE.');
+}
+
+// ── CLIENT UPLOAD (client can add their own content) ────
+let clientUploadImgData=null;
+function openClientUploadModal(){
+  document.getElementById('cuTitulo').value='';
+  document.getElementById('cuDesc').value='';
+  document.getElementById('cuData').value='';
+  document.getElementById('cuFilePrev').textContent='';
+  clientUploadImgData=null;
+  document.getElementById('mClientUpload').style.display='flex';
+}
+function handleClientUploadFile(input){
+  if(input.files[0]){
+    document.getElementById('cuFilePrev').textContent='✓ '+input.files[0].name;
+    const r=new FileReader();
+    r.onload=e=>{clientUploadImgData=e.target.result;};
+    r.readAsDataURL(input.files[0]);
+  }
+}
+async function saveClientUpload(){
+  const titulo=document.getElementById('cuTitulo').value.trim();
+  const desc=document.getElementById('cuDesc').value.trim();
+  if(!titulo){alert('Adicione um título.');return;}
+  const nc={
+    id:'c'+Date.now(),
+    cid:currentUser.cid,
+    mes:document.getElementById('cuMes').value,
+    tipo:document.getElementById('cuTipo').value,
+    data:document.getElementById('cuData').value,
+    titulo,desc,
+    status:'pending',
+    comment:'',
+    img:clientUploadImgData||null,
+    fromClient:true
+  };
+  await fbSaveContent(nc);
+  closeModal('mClientUpload');
+  addNotif('📤','Novo conteúdo enviado pelo cliente',`${getClient(currentUser.cid)?.name} enviou "${titulo}" para aprovação`);
+  alert('Conteúdo enviado! A equipe NEXTSCALE vai revisar.');
 }
 // ── EDIT CONTENT ─────────────────────────────
 function openEditModal(id){
