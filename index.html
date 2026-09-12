@@ -180,7 +180,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .empty{text-align:center;padding:2.5rem;color:var(--gray)}
 .empty-ico{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
 /* MONTH THEME */
-.theme-box{display:none;background:linear-gradient(135deg,rgba(201,146,42,.12),rgba(201,146,42,.03));border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.3rem;margin-bottom:1.25rem}
+.theme-box{background:linear-gradient(135deg,rgba(201,146,42,.12),rgba(201,146,42,.03));border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.3rem;margin-bottom:1.25rem}
+.theme-select{background:var(--surf2);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;color:var(--gold);font-size:.72rem;font-weight:700;outline:none;cursor:pointer}
 .theme-label{font-size:.68rem;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between}
 .theme-text{font-size:1rem;font-weight:700;color:var(--white);margin-bottom:.25rem}
 .theme-empty{font-size:.85rem;color:var(--gray);font-style:italic}
@@ -724,28 +725,40 @@ function renderDetMonths(filter){
     const b=document.createElement('button');b.className='mtab';b.textContent=m;
     b.onclick=function(){filterDet(m,this);};tabs.appendChild(b);
   });
-  renderThemeBox('detThemeBox',currentCid,filter,true);
+  renderThemeBox('detThemeBox',currentCid);
   const filtered=filter?cc.filter(c=>c.mes===filter):cc;
   const g=document.getElementById('detGrid');g.innerHTML='';
   if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo ainda.<br>Adicione o primeiro conteúdo.</p></div>';return;}
   filtered.forEach(c=>g.appendChild(makeContentCard(c,true)));
 }
-function renderThemeBox(elId,cid,mes,isAdmin){
+const MES_OPTIONS=['Julho 2026','Agosto 2026','Setembro 2026','Outubro 2026','Novembro 2026'];
+let themeBoxMonth={}; // cid -> mes selecionado dentro da caixa de tema
+function guessCurrentMonth(){
+  const d=new Date();
+  const label=MONTHS[d.getMonth()]+' '+d.getFullYear();
+  return MES_OPTIONS.includes(label)?label:MES_OPTIONS[0];
+}
+function renderThemeBox(elId,cid){
   const box=document.getElementById(elId);
   if(!box)return;
-  if(!mes){
-    box.style.display='none';
-    return;
-  }
   box.style.display='block';
+  const mes=themeBoxMonth[cid]||guessCurrentMonth();
+  themeBoxMonth[cid]=mes;
   const t=getTheme(cid,mes);
+  const options=MES_OPTIONS.map(m=>`<option value="${m}" ${m===mes?'selected':''}>${m}</option>`).join('');
   box.innerHTML=`
     <div class="theme-label">
-      <span>🎯 Tema do mês — ${mes}</span>
-      ${isAdmin?`<button class="theme-edit-btn" onclick="openThemeModal('${cid}','${mes}')">${t?'Editar':'+ Definir tema'}</button>`:''}
+      <span>🎯 Tema do mês —
+        <select class="theme-select" onchange="changeThemeBoxMonth('${elId}','${cid}',this.value)">${options}</select>
+      </span>
+      <button class="theme-edit-btn" onclick="openThemeModal('${cid}','${mes}')">${t&&t.texto?'✏️ Editar':'+ Definir tema'}</button>
     </div>
-    ${t&&t.texto?`<div class="theme-text">${t.texto}</div>`:`<div class="theme-empty">${isAdmin?'Nenhum tema definido para este mês ainda.':'A equipe ainda não definiu o tema deste mês.'}</div>`}
+    ${t&&t.texto?`<div class="theme-text">${t.texto}</div>`:`<div class="theme-empty">Nenhum tema definido para ${mes} ainda.</div>`}
   `;
+}
+function changeThemeBoxMonth(elId,cid,mes){
+  themeBoxMonth[cid]=mes;
+  renderThemeBox(elId,cid);
 }
 function openThemeModal(cid,mes){
   document.getElementById('themeCid').value=cid;
@@ -761,6 +774,7 @@ async function saveTheme(){
   const id=cid+'_'+mes.replace(/\s+/g,'_');
   await fbSaveTheme({id,cid,mes,texto});
   closeModal('mTheme');
+  themeBoxMonth[cid]=mes;
   alert('Tema do mês salvo!');
 }
 function filterDet(m,btn){
@@ -1125,7 +1139,7 @@ function renderClientView(cid,filter){
     const b=document.createElement('button');b.className='mtab';b.textContent=m;
     b.onclick=function(){filterClient(m,this);};tabs.appendChild(b);
   });
-  renderThemeBox('clientThemeBox',cid,filter,false);
+  renderThemeBox('clientThemeBox',cid);
   const filtered=filter?cc.filter(c=>c.mes===filter):cc;
   const g=document.getElementById('clientGrid2');g.innerHTML='';
   if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo disponível ainda.<br>Aguarde a equipe NEXTSCALE adicionar.</p></div>';return;}
