@@ -335,9 +335,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <input type="hidden" id="editId">
     <div class="form-row">
       <div class="fg"><label>CLIENTE</label><select id="cCliente"></select></div>
-      <div class="fg"><label>MÊS</label><select id="cMes">
-        <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
-      </select></div>
+      <div class="fg"><label>MÊS</label><select id="cMes"></select></div>
     </div>
     <div class="form-row">
       <div class="fg"><label>TIPO</label><select id="cTipo">
@@ -365,9 +363,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal" style="max-width:460px">
     <div class="modal-hdr"><div class="modal-title">Tema do Mês</div><button class="btn-x" onclick="closeModal('mTheme')">✕</button></div>
     <input type="hidden" id="themeCid">
-    <div class="fg"><label>MÊS</label><select id="themeMes">
-      <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
-    </select></div>
+    <div class="fg"><label>MÊS</label><select id="themeMes"></select></div>
     <div class="fg"><label>TEMA / DIREÇÃO ESTRATÉGICA DO MÊS</label><textarea id="themeTexto" rows="4" placeholder="Ex: Autoridade no mercado naval — mostrar bastidores de obras e cases de sucesso"></textarea></div>
     <div class="modal-foot">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('mTheme')">Cancelar</button>
@@ -402,9 +398,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal">
     <div class="modal-hdr"><div class="modal-title">Enviar Novo Conteúdo</div><button class="btn-x" onclick="closeModal('mClientUpload')">✕</button></div>
     <div class="form-row">
-      <div class="fg"><label>MÊS</label><select id="cuMes">
-        <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
-      </select></div>
+      <div class="fg"><label>MÊS</label><select id="cuMes"></select></div>
       <div class="fg"><label>TIPO</label><select id="cuTipo">
         <option>📚 Carrossel</option><option>🖼️ Estático</option><option>🎬 Vídeo</option><option>🎥 Reels</option><option>📱 Stories</option>
       </select></div>
@@ -560,6 +554,12 @@ async function fbSaveTheme(t){
 
 initFirestore();
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function buildMesOptions(){
+  const out=[];
+  [2026,2027].forEach(y=>MONTHS.forEach(m=>out.push(m+' '+y)));
+  return out;
+}
+const MES_OPTIONS_FULL=buildMesOptions();
 const TIPO_ICO={'📚 Carrossel':'📚','🖼️ Estático':'🖼️','🎬 Vídeo':'🎬','🎥 Reels':'🎥','📱 Stories':'📱'};
 const STATUS_COLORS={pending:'#F59E0B',approved:'#22C55E',revision:'#EF4444'};
 
@@ -718,7 +718,9 @@ function showDetail(cid){
 }
 function renderDetMonths(filter){
   const cc=getCContents(currentCid);
-  const months=[...new Set(cc.map(c=>c.mes))];
+  const monthsSet=new Set(cc.map(c=>c.mes));
+  monthsSet.add(guessCurrentMonth());
+  const months=[...monthsSet].sort((a,b)=>MES_OPTIONS.indexOf(a)-MES_OPTIONS.indexOf(b));
   const tabs=document.getElementById('detMonthTabs');
   tabs.innerHTML='<button class="mtab on" onclick="filterDet(null,this)">Todos</button>';
   months.forEach(m=>{
@@ -731,7 +733,16 @@ function renderDetMonths(filter){
   if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo ainda.<br>Adicione o primeiro conteúdo.</p></div>';return;}
   filtered.forEach(c=>g.appendChild(makeContentCard(c,true)));
 }
-const MES_OPTIONS=['Julho 2026','Agosto 2026','Setembro 2026','Outubro 2026','Novembro 2026'];
+const MES_OPTIONS=MES_OPTIONS_FULL;
+function fillMonthSelects(){
+  ['cMes','cuMes','themeMes'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel||sel.options.length)return;
+    MES_OPTIONS.forEach(m=>{
+      const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);
+    });
+  });
+}
 let themeBoxMonth={}; // cid -> mes selecionado dentro da caixa de tema
 function guessCurrentMonth(){
   const d=new Date();
@@ -761,6 +772,7 @@ function changeThemeBoxMonth(elId,cid,mes){
   renderThemeBox(elId,cid);
 }
 function openThemeModal(cid,mes){
+  fillMonthSelects();
   document.getElementById('themeCid').value=cid;
   document.getElementById('themeMes').value=mes;
   const t=getTheme(cid,mes);
@@ -893,6 +905,7 @@ async function saveClientEdit(){
 // ── CLIENT UPLOAD (client can add their own content) ────
 let clientUploadImgData=null;
 function openClientUploadModal(){
+  fillMonthSelects();
   document.getElementById('cuTitulo').value='';
   document.getElementById('cuDesc').value='';
   document.getElementById('cuData').value='';
@@ -931,6 +944,7 @@ async function saveClientUpload(){
 }
 // ── EDIT CONTENT ─────────────────────────────
 function openEditModal(id){
+  fillMonthSelects();
   const c=contents.find(x=>x.id===id);if(!c)return;
   document.getElementById('mContentTitle').textContent='Editar Conteúdo';
   document.getElementById('editId').value=id;
@@ -944,6 +958,7 @@ function openEditModal(id){
   document.getElementById('mContent').style.display='flex';
 }
 function openContentModal(cid){
+  fillMonthSelects();
   document.getElementById('mContentTitle').textContent='Novo Conteúdo';
   document.getElementById('editId').value='';
   populateClientSelect(cid||currentCid);
@@ -1132,7 +1147,7 @@ function renderClientView(cid,filter){
     <div class="stat"><div class="stat-label">PENDENTES</div><div class="stat-val" style="color:var(--yellow)">${pend}</div></div>
     <div class="stat"><div class="stat-label">APROVADOS</div><div class="stat-val" style="color:var(--green)">${appr}</div></div>
     <div class="stat"><div class="stat-label">EM REVISÃO</div><div class="stat-val" style="color:var(--red)">${rev}</div></div>`;
-  const months=[...new Set(cc.map(c=>c.mes))];
+  const months=[...new Set([...cc.map(c=>c.mes), guessCurrentMonth()])].sort((a,b)=>MES_OPTIONS.indexOf(a)-MES_OPTIONS.indexOf(b));
   const tabs=document.getElementById('clientMonthTabs');
   tabs.innerHTML='<button class="mtab on" onclick="filterClient(null,this)">Todos</button>';
   months.forEach(m=>{
@@ -1171,6 +1186,7 @@ async function saveClient(){
 function closeModal(id){document.getElementById(id).style.display='none';}
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.style.display='none';}));
 updateNotifBadge();
+fillMonthSelects();
 </script>
 </body>
 </html>
