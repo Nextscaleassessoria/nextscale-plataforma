@@ -302,6 +302,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="grid-c" id="clientGrid2"></div>
     </div>
 
+    <!-- CALENDÁRIO CLIENTE -->
+    <div class="page" id="pClientCal">
+      <div class="sec-hdr">
+        <div><div class="sec-title" style="font-size:1.1rem">Calendário Editorial</div><div class="sec-sub">Datas de publicação dos seus conteúdos</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn btn-sm btn-outline" onclick="changeClientMonth(-1)">‹</button>
+          <span id="clientCalMonthLabel" style="font-size:.9rem;font-weight:700;min-width:140px;text-align:center"></span>
+          <button class="btn btn-sm btn-outline" onclick="changeClientMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="clientCalGrid"></div>
+    </div>
+
   </div>
 </div>
 
@@ -474,6 +487,7 @@ function rerenderCurrentPage(){
   if(id==='pDetalhe' && currentCid) renderDetMonths();
   if(id==='pPlan') renderPlan();
   if(id==='pClient' && currentCid) renderClientView(currentCid);
+  if(id==='pClientCal') renderClientCal();
 }
 
 async function fbSaveClient(c){
@@ -553,7 +567,14 @@ function setupAdminNav(){
 }
 function setupClientNav(){
   document.getElementById('navLinks').innerHTML=`
-    <button class="nav-link on" onclick="nav(this,'pClient')">Meus Conteúdos</button>`;
+    <button class="nav-link on" onclick="nav(this,'pClient')">Meus Conteúdos</button>
+    <button class="nav-link" onclick="navClientCal(this)">Calendário</button>`;
+}
+function navClientCal(btn){
+  document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  showP('pClientCal');
+  renderClientCal();
 }
 function nav(btn,pid){
   document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('on'));
@@ -946,11 +967,42 @@ function renderCal(){
     el.innerHTML=`<div class="cal-num">${d}</div>`;
     const dayContents=contents.filter(c=>c.data===dateStr);
     dayContents.forEach(c=>{
+      const cl=getClient(c.cid);
+      const ev=document.createElement('div');
+      ev.className=`cal-event ${c.status}`;
+      ev.textContent=(cl?cl.name+' · ':'')+c.titulo.slice(0,14);
+      ev.title=(cl?cl.name+' — ':'')+c.titulo;
+      ev.onclick=()=>{showDetail(c.cid);};
+      el.appendChild(ev);
+    });
+    grid.appendChild(el);
+  }
+}
+
+// ── CALENDAR (CLIENT VIEW) ────────────────────
+let clientCalYear=2026,clientCalMonth=6;
+function changeClientMonth(d){clientCalMonth+=d;if(clientCalMonth>11){clientCalMonth=0;clientCalYear++;}if(clientCalMonth<0){clientCalMonth=11;clientCalYear--;}renderClientCal();}
+function renderClientCal(){
+  document.getElementById('clientCalMonthLabel').textContent=MONTHS[clientCalMonth]+' '+clientCalYear;
+  const grid=document.getElementById('clientCalGrid');grid.innerHTML='';
+  const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  days.forEach(d=>{const el=document.createElement('div');el.className='cal-day-name';el.textContent=d;grid.appendChild(el);});
+  const first=new Date(clientCalYear,clientCalMonth,1).getDay();
+  const daysInMonth=new Date(clientCalYear,clientCalMonth+1,0).getDate();
+  const today=new Date();
+  const myContents=getCContents(currentUser.cid);
+  for(let i=0;i<first;i++){const el=document.createElement('div');el.className='cal-day other-month';grid.appendChild(el);}
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement('div');el.className='cal-day';
+    if(d===today.getDate()&&clientCalMonth===today.getMonth()&&clientCalYear===today.getFullYear())el.classList.add('today');
+    const dateStr=`${clientCalYear}-${String(clientCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    el.innerHTML=`<div class="cal-num">${d}</div>`;
+    const dayContents=myContents.filter(c=>c.data===dateStr);
+    dayContents.forEach(c=>{
       const ev=document.createElement('div');
       ev.className=`cal-event ${c.status}`;
       ev.textContent=c.titulo.slice(0,18);
       ev.title=c.titulo;
-      ev.onclick=()=>{showDetail(c.cid);};
       el.appendChild(ev);
     });
     grid.appendChild(el);
