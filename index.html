@@ -179,6 +179,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* EMPTY */
 .empty{text-align:center;padding:2.5rem;color:var(--gray)}
 .empty-ico{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
+/* MONTH THEME */
+.theme-box{display:none;background:linear-gradient(135deg,rgba(201,146,42,.12),rgba(201,146,42,.03));border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.3rem;margin-bottom:1.25rem}
+.theme-label{font-size:.68rem;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between}
+.theme-text{font-size:1rem;font-weight:700;color:var(--white);margin-bottom:.25rem}
+.theme-empty{font-size:.85rem;color:var(--gray);font-style:italic}
+.theme-edit-btn{background:transparent;border:1px solid var(--border);color:var(--gold);border-radius:6px;padding:3px 10px;font-size:.68rem;cursor:pointer}
+.theme-edit-btn:hover{background:rgba(201,146,42,.1)}
 </style>
 </head>
 <body>
@@ -288,6 +295,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <div class="month-tabs" id="detMonthTabs"></div>
+      <div class="theme-box" id="detThemeBox"></div>
       <div class="grid-c" id="detGrid"></div>
     </div>
 
@@ -298,6 +306,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <button class="btn btn-gold btn-sm" onclick="openClientUploadModal()">+ Novo Conteúdo</button>
       </div>
       <div class="stats" id="clientStats"></div>
+      <div class="theme-box" id="clientThemeBox"></div>
       <div class="month-tabs" id="clientMonthTabs"></div>
       <div class="grid-c" id="clientGrid2"></div>
     </div>
@@ -346,6 +355,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="modal-foot">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('mContent')">Cancelar</button>
       <button class="btn btn-gold" style="flex:2" onclick="saveContent()">Salvar Conteúdo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TEMA DO MÊS -->
+<div class="overlay" id="mTheme">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hdr"><div class="modal-title">Tema do Mês</div><button class="btn-x" onclick="closeModal('mTheme')">✕</button></div>
+    <input type="hidden" id="themeCid">
+    <div class="fg"><label>MÊS</label><select id="themeMes">
+      <option>Julho 2026</option><option>Agosto 2026</option><option>Setembro 2026</option><option>Outubro 2026</option><option>Novembro 2026</option>
+    </select></div>
+    <div class="fg"><label>TEMA / DIREÇÃO ESTRATÉGICA DO MÊS</label><textarea id="themeTexto" rows="4" placeholder="Ex: Autoridade no mercado naval — mostrar bastidores de obras e cases de sucesso"></textarea></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('mTheme')">Cancelar</button>
+      <button class="btn btn-gold" style="flex:2" onclick="saveTheme()">Salvar Tema</button>
     </div>
   </div>
 </div>
@@ -427,6 +452,7 @@ let role='admin',currentUser=null,currentCid=null,calYear=2026,calMonth=6;
 let notifications=[];
 let clients=[];
 let contents=[];
+let themes=[]; // {id: cid_mes, cid, mes, texto}
 const USERS={
   'admin@nextscale.com':{pass:'admin123',role:'admin',name:'Werley Moraes',initials:'W',roleLabel:'CEO · NEXTSCALE'},
 };
@@ -475,6 +501,12 @@ async function initFirestore(){
     if(document.getElementById('pNotif')?.classList.contains('on')) renderNotifs();
     if(document.getElementById('pDash')?.classList.contains('on')) renderDash();
   });
+
+  // Live sync month themes
+  onSnapshot(collection(db,'themes'), snapshot => {
+    themes = snapshot.docs.map(d => d.data());
+    rerenderCurrentPage();
+  });
 }
 
 function rerenderCurrentPage(){
@@ -519,6 +551,10 @@ async function fbUpdateNotifRead(id, read){
   const { db, doc, setDoc } = window.FB;
   const n = notifications.find(x=>x.id===id);
   if(n){ n.read=read; await setDoc(doc(db,'notifications',id), n); }
+}
+async function fbSaveTheme(t){
+  const { db, doc, setDoc } = window.FB;
+  await setDoc(doc(db,'themes',t.id), t);
 }
 
 initFirestore();
@@ -595,6 +631,7 @@ function showP(pid){
 const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const getClient=id=>clients.find(c=>c.id===id);
 const getCContents=id=>contents.filter(c=>c.cid===id);
+const getTheme=(cid,mes)=>themes.find(t=>t.cid===cid&&t.mes===mes);
 const statusLabel={pending:'Aguardando aprovação',approved:'Aprovado',revision:'Revisão solicitada'};
 const statusDot={pending:'sdot-y',approved:'sdot-g',revision:'sdot-r'};
 const statusBadge={pending:'badge-y',approved:'badge-g',revision:'badge-r'};
@@ -687,10 +724,44 @@ function renderDetMonths(filter){
     const b=document.createElement('button');b.className='mtab';b.textContent=m;
     b.onclick=function(){filterDet(m,this);};tabs.appendChild(b);
   });
+  renderThemeBox('detThemeBox',currentCid,filter,true);
   const filtered=filter?cc.filter(c=>c.mes===filter):cc;
   const g=document.getElementById('detGrid');g.innerHTML='';
   if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo ainda.<br>Adicione o primeiro conteúdo.</p></div>';return;}
   filtered.forEach(c=>g.appendChild(makeContentCard(c,true)));
+}
+function renderThemeBox(elId,cid,mes,isAdmin){
+  const box=document.getElementById(elId);
+  if(!box)return;
+  if(!mes){
+    box.style.display='none';
+    return;
+  }
+  box.style.display='block';
+  const t=getTheme(cid,mes);
+  box.innerHTML=`
+    <div class="theme-label">
+      <span>🎯 Tema do mês — ${mes}</span>
+      ${isAdmin?`<button class="theme-edit-btn" onclick="openThemeModal('${cid}','${mes}')">${t?'Editar':'+ Definir tema'}</button>`:''}
+    </div>
+    ${t&&t.texto?`<div class="theme-text">${t.texto}</div>`:`<div class="theme-empty">${isAdmin?'Nenhum tema definido para este mês ainda.':'A equipe ainda não definiu o tema deste mês.'}</div>`}
+  `;
+}
+function openThemeModal(cid,mes){
+  document.getElementById('themeCid').value=cid;
+  document.getElementById('themeMes').value=mes;
+  const t=getTheme(cid,mes);
+  document.getElementById('themeTexto').value=t?t.texto:'';
+  document.getElementById('mTheme').style.display='flex';
+}
+async function saveTheme(){
+  const cid=document.getElementById('themeCid').value;
+  const mes=document.getElementById('themeMes').value;
+  const texto=document.getElementById('themeTexto').value.trim();
+  const id=cid+'_'+mes.replace(/\s+/g,'_');
+  await fbSaveTheme({id,cid,mes,texto});
+  closeModal('mTheme');
+  alert('Tema do mês salvo!');
 }
 function filterDet(m,btn){
   document.querySelectorAll('#detMonthTabs .mtab').forEach(b=>b.classList.remove('on'));
@@ -1054,6 +1125,7 @@ function renderClientView(cid,filter){
     const b=document.createElement('button');b.className='mtab';b.textContent=m;
     b.onclick=function(){filterClient(m,this);};tabs.appendChild(b);
   });
+  renderThemeBox('clientThemeBox',cid,filter,false);
   const filtered=filter?cc.filter(c=>c.mes===filter):cc;
   const g=document.getElementById('clientGrid2');g.innerHTML='';
   if(filtered.length===0){g.innerHTML='<div class="empty"><div class="empty-ico">📄</div><p>Nenhum conteúdo disponível ainda.<br>Aguarde a equipe NEXTSCALE adicionar.</p></div>';return;}
